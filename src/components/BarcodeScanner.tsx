@@ -2,7 +2,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { BrowserBarcodeReader } from '@zxing/library';
 import { Button } from '@/components/ui/button';
-import { Camera, FlipCamera } from 'lucide-react';
+import { Camera, RotateCcw } from 'lucide-react';
 import { useBarcodes } from '@/context/BarcodeContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
@@ -148,7 +148,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
               size="icon"
               className="rounded-full bg-background/70 backdrop-blur-md hover:bg-background/90 shadow-md"
             >
-              <FlipCamera className="h-5 w-5" />
+              <RotateCcw className="h-5 w-5" />
             </Button>
           </div>
         )}
