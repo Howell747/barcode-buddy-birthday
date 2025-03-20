@@ -17,45 +17,81 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const { setCurrentBarcode } = useBarcodes();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const startCamera = async () => {
     setIsLoading(true);
+    setPermissionDenied(false);
+    
     try {
       if (streamRef.current) {
         stopCamera();
       }
 
-      const constraints = {
-        video: { 
-          facingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          if (videoRef.current) {
-            videoRef.current.play();
-            setIsCameraActive(true);
-            startScanning();
+      // Request permission first on iOS devices to prevent issues
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const constraints = {
+          video: { 
+            facingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         };
+
+        console.log('Requesting camera with constraints:', constraints);
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            if (videoRef.current) {
+              videoRef.current.play()
+                .then(() => {
+                  setIsCameraActive(true);
+                  startScanning();
+                  console.log('Camera started successfully');
+                })
+                .catch(err => {
+                  console.error('Error playing video:', err);
+                  toast({
+                    title: "Camera Error",
+                    description: "Could not start video playback.",
+                    variant: "destructive"
+                  });
+                });
+            }
+          };
+        }
+      } else {
+        console.error('getUserMedia not supported in this browser');
+        toast({
+          title: "Not Supported",
+          description: "Camera access is not supported in this browser.",
+          variant: "destructive"
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error accessing camera:', error);
-      toast({
-        title: "Camera Error",
-        description: "Could not access camera. Please make sure you've granted permission.",
-        variant: "destructive"
-      });
+      
+      // Handle permission denied specifically
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        setPermissionDenied(true);
+        toast({
+          title: "Permission Denied",
+          description: "Camera access was denied. Please allow camera access in your browser settings.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Camera Error",
+          description: error.message || "Could not access camera.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -71,6 +107,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    console.log('Camera stopped');
   };
 
   const switchCamera = () => {
@@ -87,9 +124,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
     if (!videoRef.current) return;
 
     try {
+      console.log('Starting barcode scanning...');
       const codeReader = new BrowserBarcodeReader();
       await codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
         if (result) {
+          console.log('Barcode detected:', result.getText());
           handleBarcodeDetected(result.getText());
           codeReader.reset();
           stopCamera();
@@ -137,8 +176,16 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
               className="bg-primary/90 hover:bg-primary px-6 py-6 rounded-full shadow-lg animate-pulse-light"
             >
               <Camera className="h-8 w-8" />
-              <span className="ml-2 text-lg">Start Camera</span>
+              <span className="ml-2 text-lg">{isLoading ? 'Starting...' : 'Start Camera'}</span>
             </Button>
+            
+            {permissionDenied && (
+              <div className="absolute bottom-4 left-0 right-0 text-center px-4">
+                <p className="text-destructive text-sm">
+                  Camera access denied. Please check your browser settings and grant permission.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="absolute top-4 right-4 z-10">
@@ -158,6 +205,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
           className="w-full h-full object-cover"
           playsInline
           muted
+          autoPlay
         />
         
         {isCameraActive && (
