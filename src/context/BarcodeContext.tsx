@@ -1,5 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 export interface BarcodeItem {
   id: string;
@@ -15,8 +17,8 @@ export interface BarcodeItem {
 
 interface BarcodeContextType {
   items: BarcodeItem[];
-  addItem: (item: Omit<BarcodeItem, 'id' | 'dateAdded'>) => void;
-  deleteItem: (id: string) => void;
+  addItem: (item: Omit<BarcodeItem, 'id' | 'dateAdded'>) => Promise<BarcodeItem | null>;
+  deleteItem: (id: string) => Promise<void>;
   getItemsByProfileId: (profileId: string) => BarcodeItem[];
   getItemById: (id: string) => BarcodeItem | undefined;
   loading: boolean;
@@ -38,62 +40,121 @@ export const BarcodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [items, setItems] = useState<BarcodeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentBarcode, setCurrentBarcode] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  // Load items from localStorage on initial render
+  // Load items from Supabase on initial render
   useEffect(() => {
-    const storedItems = localStorage.getItem('barcodeItems');
-    if (storedItems) {
-      setItems(JSON.parse(storedItems));
-    } else {
-      // Add some demo items for demonstration purposes
-      const demoItems: BarcodeItem[] = [
-        {
-          id: '1',
-          profileId: '1',
-          barcode: '9780735211292',
-          productName: 'Atomic Habits',
-          productImage: 'https://m.media-amazon.com/images/I/81wgcld4wxL._AC_UF1000,1000_QL80_.jpg',
-          description: 'An Easy & Proven Way to Build Good Habits & Break Bad Ones',
-          price: '$11.98',
-          retailer: 'Amazon',
-          dateAdded: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          profileId: '2',
-          barcode: '5060624582615',
-          productName: 'LEGO Star Wars Set',
-          productImage: 'https://m.media-amazon.com/images/I/81wId1U0gnL._AC_SL1500_.jpg',
-          description: 'Building set with popular Star Wars character',
-          price: '$19.99',
-          retailer: 'Target',
-          dateAdded: new Date().toISOString(),
-        },
-      ];
-      setItems(demoItems);
-      localStorage.setItem('barcodeItems', JSON.stringify(demoItems));
-    }
-    setLoading(false);
-  }, []);
-
-  // Save items to localStorage whenever they change
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('barcodeItems', JSON.stringify(items));
-    }
-  }, [items, loading]);
-
-  const addItem = (item: Omit<BarcodeItem, 'id' | 'dateAdded'>) => {
-    const newItem: BarcodeItem = {
-      ...item,
-      id: Date.now().toString(),
-      dateAdded: new Date().toISOString(),
+    const fetchItems = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('barcode_items')
+          .select('*')
+          .order('date_added', { ascending: false });
+        
+        if (error) {
+          console.error('Error fetching barcode items:', error);
+          toast({
+            title: 'Failed to load items',
+            description: error.message,
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        if (data) {
+          const formattedItems: BarcodeItem[] = data.map(item => ({
+            id: item.id,
+            profileId: item.profile_id,
+            barcode: item.barcode,
+            productName: item.product_name,
+            productImage: item.product_image,
+            description: item.description,
+            price: item.price,
+            retailer: item.retailer,
+            dateAdded: item.date_added,
+          }));
+          setItems(formattedItems);
+        }
+      } catch (error) {
+        console.error('Error fetching barcode items:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-    setItems([...items, newItem]);
+
+    fetchItems();
+  }, [toast]);
+
+  const addItem = async (item: Omit<BarcodeItem, 'id' | 'dateAdded'>): Promise<BarcodeItem | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('barcode_items')
+        .insert([{
+          profile_id: item.profileId,
+          barcode: item.barcode,
+          product_name: item.productName,
+          product_image: item.productImage,
+          description: item.description,
+          price: item.price,
+          retailer: item.retailer,
+        }])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error adding barcode item:', error);
+        toast({
+          title: 'Failed to add item',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return null;
+      }
+      
+      if (data) {
+        const newItem: BarcodeItem = {
+          id: data.id,
+          profileId: data.profile_id,
+          barcode: data.barcode,
+          productName: data.product_name,
+          productImage: data.product_image,
+          description: data.description,
+          price: data.price,
+          retailer: data.retailer,
+          dateAdded: data.date_added,
+        };
+        setItems([newItem, ...items]);
+        return newItem;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error adding barcode item:', error);
+      return null;
+    }
   };
 
-  const deleteItem = (id: string) => {
-    setItems(items.filter((item) => item.id !== id));
+  const deleteItem = async (id: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('barcode_items')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error deleting barcode item:', error);
+        toast({
+          title: 'Failed to delete item',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setItems(items.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error('Error deleting barcode item:', error);
+    }
   };
 
   const getItemsByProfileId = (profileId: string) => {

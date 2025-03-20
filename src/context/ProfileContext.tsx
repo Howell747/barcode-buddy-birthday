@@ -1,5 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 export interface Profile {
   id: string;
@@ -9,9 +11,9 @@ export interface Profile {
 
 interface ProfileContextType {
   profiles: Profile[];
-  addProfile: (name: string) => void;
-  updateProfile: (id: string, name: string) => void;
-  deleteProfile: (id: string) => void;
+  addProfile: (name: string) => Promise<Profile | null>;
+  updateProfile: (id: string, name: string) => Promise<void>;
+  deleteProfile: (id: string) => Promise<void>;
   getProfileById: (id: string) => Profile | undefined;
   loading: boolean;
 }
@@ -29,50 +31,128 @@ export const useProfiles = () => {
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  // Load profiles from localStorage on initial render
+  // Load profiles from Supabase on initial render
   useEffect(() => {
-    const storedProfiles = localStorage.getItem('profiles');
-    if (storedProfiles) {
-      setProfiles(JSON.parse(storedProfiles));
-    } else {
-      // Set some default profiles for demonstration purposes
-      const defaultProfiles: Profile[] = [
-        { id: '1', name: 'Emma', createdAt: new Date().toISOString() },
-        { id: '2', name: 'Noah', createdAt: new Date().toISOString() },
-      ];
-      setProfiles(defaultProfiles);
-      localStorage.setItem('profiles', JSON.stringify(defaultProfiles));
-    }
-    setLoading(false);
-  }, []);
-
-  // Save profiles to localStorage whenever they change
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('profiles', JSON.stringify(profiles));
-    }
-  }, [profiles, loading]);
-
-  const addProfile = (name: string) => {
-    const newProfile: Profile = {
-      id: Date.now().toString(),
-      name,
-      createdAt: new Date().toISOString(),
+    const fetchProfiles = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('Error fetching profiles:', error);
+          toast({
+            title: 'Failed to load profiles',
+            description: error.message,
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        if (data) {
+          const formattedProfiles: Profile[] = data.map(profile => ({
+            id: profile.id,
+            name: profile.name,
+            createdAt: profile.created_at,
+          }));
+          setProfiles(formattedProfiles);
+        }
+      } catch (error) {
+        console.error('Error fetching profiles:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-    setProfiles([...profiles, newProfile]);
+
+    fetchProfiles();
+  }, [toast]);
+
+  const addProfile = async (name: string): Promise<Profile | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([{ name }])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error adding profile:', error);
+        toast({
+          title: 'Failed to add profile',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return null;
+      }
+      
+      if (data) {
+        const newProfile: Profile = {
+          id: data.id,
+          name: data.name,
+          createdAt: data.created_at,
+        };
+        setProfiles([newProfile, ...profiles]);
+        return newProfile;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error adding profile:', error);
+      return null;
+    }
   };
 
-  const updateProfile = (id: string, name: string) => {
-    setProfiles(
-      profiles.map((profile) =>
-        profile.id === id ? { ...profile, name } : profile
-      )
-    );
+  const updateProfile = async (id: string, name: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name })
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error updating profile:', error);
+        toast({
+          title: 'Failed to update profile',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setProfiles(
+        profiles.map((profile) =>
+          profile.id === id ? { ...profile, name } : profile
+        )
+      );
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
   };
 
-  const deleteProfile = (id: string) => {
-    setProfiles(profiles.filter((profile) => profile.id !== id));
+  const deleteProfile = async (id: string): Promise<void> => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error deleting profile:', error);
+        toast({
+          title: 'Failed to delete profile',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setProfiles(profiles.filter((profile) => profile.id !== id));
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+    }
   };
 
   const getProfileById = (id: string) => {

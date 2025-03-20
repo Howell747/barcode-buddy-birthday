@@ -60,6 +60,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ barcode, profileId }) => {
     productImage: '',
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   
   const { addItem, setCurrentBarcode } = useBarcodes();
@@ -100,7 +101,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ barcode, profileId }) => {
     setProduct(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!product.productName) {
@@ -120,24 +121,39 @@ const ProductForm: React.FC<ProductFormProps> = ({ barcode, profileId }) => {
       });
       return;
     }
-    
-    addItem({
-      barcode: product.barcode || '',
-      productName: product.productName || 'Unknown Product',
-      description: product.description,
-      price: product.price,
-      retailer: product.retailer,
-      productImage: product.productImage,
-      profileId: selectedProfile.id,
-    });
-    
-    toast({
-      title: 'Product Saved',
-      description: `"${product.productName}" has been saved to ${selectedProfile.name}'s wish list`,
-    });
-    
-    setCurrentBarcode(null);
-    navigate(`/profiles/${selectedProfile.id}`);
+
+    try {
+      setSaving(true);
+      
+      const newItem = await addItem({
+        barcode: product.barcode || '',
+        productName: product.productName || 'Unknown Product',
+        description: product.description,
+        price: product.price,
+        retailer: product.retailer,
+        productImage: product.productImage,
+        profileId: selectedProfile.id,
+      });
+      
+      if (newItem) {
+        toast({
+          title: 'Product Saved',
+          description: `"${product.productName}" has been saved to ${selectedProfile.name}'s wish list`,
+        });
+        
+        setCurrentBarcode(null);
+        navigate(`/profiles/${selectedProfile.id}`);
+      }
+    } catch (error) {
+      console.error('Error saving product:', error);
+      toast({
+        title: 'Save Failed',
+        description: 'There was an error saving the product',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
   
   const handleProfileSelect = (profile: Profile) => {
@@ -271,8 +287,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ barcode, profileId }) => {
             Cancel
           </Button>
           
-          <Button type="submit" disabled={!selectedProfile}>
-            Save Product
+          <Button 
+            type="submit" 
+            disabled={!selectedProfile || saving}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Product'
+            )}
           </Button>
         </CardFooter>
       </form>
