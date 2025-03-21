@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Gift, Info } from 'lucide-react';
+import { ChevronRight, Gift, Info, ShieldAlert } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   AlertDialog,
@@ -56,7 +56,29 @@ const Home: React.FC = () => {
           <BarcodeScanner />
           
           <motion.div 
-            className="mt-8 w-full max-w-md"
+            className="mt-6 w-full max-w-md bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-200 dark:border-amber-800"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="flex items-start">
+              <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 mr-2 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                Camera permissions can be tricky on mobile web browsers. If the scanner doesn't work, try using a different browser or check your browser settings.
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="text-amber-600 dark:text-amber-400 p-0 h-auto ml-1"
+                  onClick={() => setShowInfoDialog(true)}
+                >
+                  Learn more
+                </Button>
+              </p>
+            </div>
+          </motion.div>
+          
+          <motion.div 
+            className="mt-4 w-full max-w-md"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
@@ -83,15 +105,17 @@ const Home: React.FC = () => {
             <AlertDialogTitle>Camera Permission Help</AlertDialogTitle>
             <AlertDialogDescription>
               <p className="mb-2">
-                This app needs camera permission to scan barcodes. On some mobile devices, you may need to:
+                This app needs camera permission to scan barcodes. Web apps face more restrictions than native apps. Here are some troubleshooting tips:
               </p>
               <ul className="list-disc pl-6 space-y-1 mb-2">
                 <li>Make sure you've allowed camera access in your browser settings</li>
                 <li>Check that no other app is currently using your camera</li>
-                <li>Try using a different browser if issues persist</li>
+                <li><strong>Try a different browser</strong> - Safari can be more restrictive than Chrome</li>
                 <li>For iOS, make sure your browser has camera permissions in Settings</li>
+                <li>Ensure you're on a secure connection (https)</li>
+                <li>Try refreshing the page and clicking the Start Camera button again</li>
               </ul>
-              <p>
+              <p className="text-sm text-muted-foreground mt-4">
                 The camera will only be used while scanning and never records or stores any video.
               </p>
             </AlertDialogDescription>

@@ -14,6 +14,7 @@ interface BarcodeScannerProps {
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -39,19 +40,16 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
         throw new Error('Camera API is not available in your browser');
       }
 
-      // Request permission with explicit constraints for mobile
+      // Try with minimal constraints first
       const constraints = {
         audio: false,
         video: { 
-          facingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          facingMode
         }
       };
 
-      console.log('Requesting camera with constraints:', constraints);
+      console.log('Requesting camera with basic constraints:', constraints);
       
-      // First check if we have permissions
       try {
         // Force permission prompt by requesting permissions
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -60,7 +58,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
         streamRef.current = stream;
         
         if (videoRef.current) {
+          // Directly set the srcObject
           videoRef.current.srcObject = stream;
+          // Make sure to wait until the metadata is loaded
           videoRef.current.onloadedmetadata = () => {
             if (videoRef.current) {
               videoRef.current.play()
@@ -71,52 +71,51 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
                 })
                 .catch(err => {
                   console.error('Error playing video:', err);
-                  setErrorMessage('Could not start video playback.');
+                  setErrorMessage('Could not start video playback. Try reloading the page.');
                 });
             }
           };
         }
       } catch (error: any) {
-        console.error('Camera access error:', error);
+        console.error('Initial camera access error:', error);
         
         if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-          console.log('Permission explicitly denied');
           setPermissionDenied(true);
           setErrorMessage('Camera access was denied. Please allow camera access in your browser settings.');
         } else if (error.name === 'NotFoundError') {
           setErrorMessage('No camera found on your device.');
         } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
           setErrorMessage('Your camera is already in use by another application.');
-        } else if (error.name === 'OverconstrainedError') {
-          // Try again with less constraints
-          console.log('Camera constraints too strict, trying simpler constraints');
-          const simpleConstraints = {
-            video: { facingMode }
-          };
-          
+        } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
+          // Try again with even more basic constraints - this is crucial for some mobile browsers
+          console.log('Trying with even more basic constraints');
           try {
-            const stream = await navigator.mediaDevices.getUserMedia(simpleConstraints);
-            streamRef.current = stream;
+            const basicStream = await navigator.mediaDevices.getUserMedia({ 
+              video: true 
+            });
+            
+            streamRef.current = basicStream;
             
             if (videoRef.current) {
-              videoRef.current.srcObject = stream;
+              videoRef.current.srcObject = basicStream;
               videoRef.current.onloadedmetadata = () => {
                 if (videoRef.current) {
                   videoRef.current.play()
                     .then(() => {
                       setIsCameraActive(true);
                       startScanning();
-                      console.log('Camera started with simple constraints');
+                      console.log('Camera started with basic constraints');
                     })
                     .catch(err => {
-                      console.error('Error playing video with simple constraints:', err);
-                      setErrorMessage('Could not start video playback.');
+                      console.error('Error playing video with basic constraints:', err);
+                      setErrorMessage('Still unable to access camera. Please try a different browser.');
                     });
                 }
               };
             }
-          } catch (simpleError: any) {
-            setErrorMessage(`Camera error: ${simpleError.message || 'Could not access camera with simple settings'}`);
+          } catch (basicError: any) {
+            console.error('Failed with basic constraints too:', basicError);
+            setErrorMessage(`Unable to access your camera. Please check browser settings or try a different device.`);
           }
         } else {
           setErrorMessage(`Camera error: ${error.message || 'Unknown camera error'}`);
@@ -159,6 +158,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
     try {
       console.log('Starting barcode scanning...');
       const codeReader = new BrowserBarcodeReader();
+      
       await codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
         if (result) {
           console.log('Barcode detected:', result.getText());
@@ -260,6 +260,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
           muted
           autoPlay
         />
+        
+        {/* Add canvas element for potential fallback image capture */}
+        <canvas
+          ref={canvasRef}
+          className="hidden"
+          width="640"
+          height="480"
+        ></canvas>
         
         {isCameraActive && (
           <div className="absolute inset-0 border-2 border-primary/30 pointer-events-none">
