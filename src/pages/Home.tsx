@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Gift, Info, ShieldAlert } from 'lucide-react';
+import { ChevronRight, Gift, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   AlertDialog,
@@ -32,7 +32,7 @@ const Home: React.FC = () => {
             >
               <h1 className="text-3xl font-medium mb-3">Barcode Buddy</h1>
               <p className="text-muted-foreground">
-                Scan a barcode to save gift ideas for your loved ones
+                Upload images with barcodes to save gift ideas for your loved ones
               </p>
               
               <Button 
@@ -56,29 +56,7 @@ const Home: React.FC = () => {
           <BarcodeScanner />
           
           <motion.div 
-            className="mt-6 w-full max-w-md bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-200 dark:border-amber-800"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="flex items-start">
-              <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 mr-2 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-amber-800 dark:text-amber-200">
-                Camera permissions can be tricky on mobile web browsers. If the scanner doesn't work, try using a different browser or check your browser settings.
-                <Button 
-                  variant="link" 
-                  size="sm" 
-                  className="text-amber-600 dark:text-amber-400 p-0 h-auto ml-1"
-                  onClick={() => setShowInfoDialog(true)}
-                >
-                  Learn more
-                </Button>
-              </p>
-            </div>
-          </motion.div>
-          
-          <motion.div 
-            className="mt-4 w-full max-w-md"
+            className="mt-8 w-full max-w-md"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
@@ -102,21 +80,22 @@ const Home: React.FC = () => {
       <AlertDialog open={showInfoDialog} onOpenChange={setShowInfoDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Camera Permission Help</AlertDialogTitle>
+            <AlertDialogTitle>About Barcode Buddy</AlertDialogTitle>
             <AlertDialogDescription>
               <p className="mb-2">
-                This app needs camera permission to scan barcodes. Web apps face more restrictions than native apps. Here are some troubleshooting tips:
+                This app helps you save gift ideas for your loved ones by scanning product barcodes.
+              </p>
+              <p className="mb-2">
+                To use the app:
               </p>
               <ul className="list-disc pl-6 space-y-1 mb-2">
-                <li>Make sure you've allowed camera access in your browser settings</li>
-                <li>Check that no other app is currently using your camera</li>
-                <li><strong>Try a different browser</strong> - Safari can be more restrictive than Chrome</li>
-                <li>For iOS, make sure your browser has camera permissions in Settings</li>
-                <li>Ensure you're on a secure connection (https)</li>
-                <li>Try refreshing the page and clicking the Start Camera button again</li>
+                <li>Upload images containing product barcodes</li>
+                <li>The app will automatically detect and extract barcode information</li>
+                <li>Choose which profile to save the gift idea to</li>
+                <li>View and manage saved gift ideas in each profile</li>
               </ul>
               <p className="text-sm text-muted-foreground mt-4">
-                The camera will only be used while scanning and never records or stores any video.
+                For best results, ensure barcodes are clearly visible in the images you upload.
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
