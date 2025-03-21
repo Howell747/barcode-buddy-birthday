@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Gift, Info } from 'lucide-react';
+import { ChevronRight, Gift, Info, FileImage } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   AlertDialog,
@@ -94,9 +94,19 @@ const Home: React.FC = () => {
                 <li>Choose which profile to save the gift idea to</li>
                 <li>View and manage saved gift ideas in each profile</li>
               </ul>
-              <p className="text-sm text-muted-foreground mt-4">
-                For best results, ensure barcodes are clearly visible in the images you upload.
+              <p className="text-sm font-medium mt-4 text-primary">
+                Barcode Detection Tips:
               </p>
+              <ul className="list-disc pl-6 space-y-1 mb-2 text-sm">
+                <li>Ensure barcodes are clearly visible in your images</li>
+                <li>Good lighting helps with detection</li>
+                <li>Avoid blurry images</li>
+                <li>The app supports most common barcode formats (UPC, EAN, QR, etc.)</li>
+              </ul>
+              <div className="flex items-center justify-center mt-4 gap-2 text-muted-foreground text-sm">
+                <FileImage className="h-4 w-4" />
+                <span>Powered by ZXing barcode scanning library</span>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

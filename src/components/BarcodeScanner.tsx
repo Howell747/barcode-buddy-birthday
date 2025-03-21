@@ -1,8 +1,8 @@
 
 import React, { useState, useRef } from 'react';
-import { BrowserBarcodeReader } from '@zxing/library';
+import { BrowserBarcodeReader, BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from '@zxing/library';
 import { Button } from '@/components/ui/button';
-import { Upload, Trash2, Loader2, FileText } from 'lucide-react';
+import { Upload, Trash2, Loader2, FileText, AlertCircle } from 'lucide-react';
 import { useBarcodes } from '@/context/BarcodeContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,6 +17,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   const [processedResults, setProcessedResults] = useState<{ file: string, barcode: string | null }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setCurrentBarcode } = useBarcodes();
@@ -27,6 +28,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
     const fileList = e.target.files;
     if (fileList) {
       setErrorMessage(null);
+      setDebugInfo(null);
       const newFiles = Array.from(fileList);
       setSelectedFiles(prev => [...prev, ...newFiles]);
     }
@@ -39,6 +41,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
   const clearAll = () => {
     setSelectedFiles([]);
     setProcessedResults([]);
+    setErrorMessage(null);
+    setDebugInfo(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -52,16 +56,43 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
 
     setIsProcessing(true);
     setErrorMessage(null);
+    setDebugInfo(null);
     setProcessedResults([]);
 
     try {
-      const codeReader = new BrowserBarcodeReader();
+      // Configure hints for the barcode reader
+      const hints = new Map();
+      const formats = [
+        BarcodeFormat.QR_CODE,
+        BarcodeFormat.DATA_MATRIX,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.ITF,
+        BarcodeFormat.CODABAR
+      ];
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      
+      // Use MultiFormatReader for better format support
+      const codeReader = new BrowserMultiFormatReader(hints);
       const results: { file: string, barcode: string | null }[] = [];
 
       for (const file of selectedFiles) {
         try {
           const imageUrl = URL.createObjectURL(file);
+          
+          console.log(`Processing image: ${file.name}, size: ${file.size} bytes`);
+          
+          // Add a small delay to ensure the image is fully loaded
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           const result = await codeReader.decodeFromImageUrl(imageUrl);
+          
+          console.log(`Success with ${file.name}:`, result);
           
           results.push({
             file: file.name,
@@ -78,10 +109,16 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
           }
         } catch (error) {
           console.error(`Failed to process ${file.name}:`, error);
+          
           results.push({
             file: file.name,
             barcode: null
           });
+          
+          // Collect some debug info from the first error
+          if (!debugInfo) {
+            setDebugInfo(`Error with ${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+          }
         }
       }
 
@@ -97,9 +134,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
       } else {
         toast({
           title: "No Barcodes Found",
-          description: "No valid barcodes were found in the uploaded images",
+          description: "No valid barcodes were found in the uploaded images. Try different images with clearer barcodes.",
           variant: "destructive"
         });
+        setErrorMessage("Unable to detect any barcodes. Please ensure barcode images are clear, well-lit, and not blurry.");
       }
     } catch (error) {
       console.error('Error processing images:', error);
@@ -245,9 +283,34 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onSuccess }) => {
           
           {errorMessage && (
             <Alert variant="destructive" className="mt-4">
-              <AlertTitle>Error</AlertTitle>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Barcode Detection Failed</AlertTitle>
               <AlertDescription>
                 {errorMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {debugInfo && (
+            <Alert className="mt-2">
+              <AlertTitle>Debug Info</AlertTitle>
+              <AlertDescription className="text-xs font-mono break-all">
+                {debugInfo}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {errorMessage && (
+            <Alert className="mt-2 bg-muted">
+              <AlertTitle>Tips for Better Results</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                  <li>Ensure the barcode is well-lit and not blurry</li>
+                  <li>Use images where the barcode has high contrast</li>
+                  <li>Make sure barcode isn't damaged or partially obscured</li>
+                  <li>Try different image formats (PNG, JPG)</li>
+                  <li>The app supports most common barcode formats including UPC, EAN, Code 128, Code 39, QR codes</li>
+                </ul>
               </AlertDescription>
             </Alert>
           )}
