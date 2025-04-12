@@ -1,28 +1,17 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import Layout from '@/components/Layout';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Gift, Info, FileImage } from 'lucide-react';
+import { ChevronRight, Gift } from 'lucide-react';
 import { motion } from 'framer-motion';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 const Home: React.FC = () => {
-  const [showInfoDialog, setShowInfoDialog] = useState(false);
-
   return (
     <Layout title="Barcode Buddy" padding={false}>
       <div className="flex flex-col items-center min-h-[calc(100vh-4rem)]">
-        <div className="w-full bg-gradient-to-b from-primary/5 to-transparent pb-10 pt-4 px-4 text-center relative">
+        <div className="w-full bg-gradient-to-b from-primary/5 to-transparent pb-10 pt-4 px-4 text-center">
           <div className="container max-w-md mx-auto">
             <motion.div 
               className="mb-6"
@@ -32,17 +21,8 @@ const Home: React.FC = () => {
             >
               <h1 className="text-3xl font-medium mb-3">Barcode Buddy</h1>
               <p className="text-muted-foreground">
-                Upload images with barcodes to save gift ideas for your loved ones
+                Scan a barcode to save gift ideas for your loved ones
               </p>
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="absolute top-4 right-4"
-                onClick={() => setShowInfoDialog(true)}
-              >
-                <Info className="h-5 w-5" />
-              </Button>
             </motion.div>
           </div>
         </div>
@@ -76,44 +56,6 @@ const Home: React.FC = () => {
           </motion.div>
         </motion.div>
       </div>
-      
-      <AlertDialog open={showInfoDialog} onOpenChange={setShowInfoDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>About Barcode Buddy</AlertDialogTitle>
-            <AlertDialogDescription>
-              <p className="mb-2">
-                This app helps you save gift ideas for your loved ones by scanning product barcodes.
-              </p>
-              <p className="mb-2">
-                To use the app:
-              </p>
-              <ul className="list-disc pl-6 space-y-1 mb-2">
-                <li>Upload images containing product barcodes</li>
-                <li>The app will automatically detect and extract barcode information</li>
-                <li>Choose which profile to save the gift idea to</li>
-                <li>View and manage saved gift ideas in each profile</li>
-              </ul>
-              <p className="text-sm font-medium mt-4 text-primary">
-                Barcode Detection Tips:
-              </p>
-              <ul className="list-disc pl-6 space-y-1 mb-2 text-sm">
-                <li>Ensure barcodes are clearly visible in your images</li>
-                <li>Good lighting helps with detection</li>
-                <li>Avoid blurry images</li>
-                <li>The app supports most common barcode formats (UPC, EAN, QR, etc.)</li>
-              </ul>
-              <div className="flex items-center justify-center mt-4 gap-2 text-muted-foreground text-sm">
-                <FileImage className="h-4 w-4" />
-                <span>Powered by ZXing barcode scanning library</span>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction>Got it</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Layout>
   );
 };
